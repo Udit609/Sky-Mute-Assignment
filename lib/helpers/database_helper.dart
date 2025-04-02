@@ -60,4 +60,36 @@ class DatabaseHelper {
     final db = await database;
     return await db.query('merged_videos');
   }
+
+  Future<List<Map>> getAllVideos() async {
+    final db = await database;
+    final recordedVideos = await db.query('recorded_videos');
+    final mergedVideos = await db.query('merged_videos');
+
+    final List<Map> allVideos = [
+      ...recordedVideos.map((video) => {...video, 'type': 'recorded'}),
+      ...mergedVideos.map((video) => {...video, 'type': 'merged'}),
+    ];
+
+    allVideos.sort((a, b) => (a['id'] as int).compareTo(b['id'] as int));
+    return allVideos;
+  }
+
+  Future<void> deleteRecordedVideo(int id) async {
+    final db = await database;
+    await db.delete(
+      'recorded_videos',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> deleteMergedVideo(int id) async {
+    final db = await database;
+    await db.delete(
+      'merged_videos',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 }

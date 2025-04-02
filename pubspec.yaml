@@ -42,6 +42,7 @@ dependencies:
   ffmpeg_kit_flutter: ^6.0.3
   video_compress: ^3.1.4
   permission_handler: ^11.4.0
+  stylish_bottom_bar: ^1.1.1
 
 
 dev_dependencies:

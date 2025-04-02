@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
 
     <application
-        android:label="Sky Mute"
+        android:label="Video Merger"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

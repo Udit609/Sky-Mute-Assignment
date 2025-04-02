@@ -39,8 +39,8 @@ class _CameraScreenState extends State<CameraScreen> {
 
     Map<Permission, PermissionStatus> statuses = await [
       Permission.camera,
-      Permission.manageExternalStorage, // Use this for full storage access
-      Permission.videos, // Scoped storage for videos
+      Permission.manageExternalStorage,
+      Permission.videos,
     ].request();
 
     debugPrint("Camera Permission: ${statuses[Permission.camera]}");
@@ -158,30 +158,80 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
+  Future<void> deleteSelectedVideos() async {
+    if (selectedVideos.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Videos'),
+        content: Text('Are you sure you want to delete ${selectedVideos.length} video(s)?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    final dbHelper = DatabaseHelper();
+    try {
+      for (var video in selectedVideos) {
+        await dbHelper.deleteRecordedVideo(video['id']);
+        await File(video['path']).delete();
+        await File(video['thumbnail_path']).delete();
+      }
+
+      await loadRecordedVideos();
+
+      setState(() {
+        isSelectionMode = false;
+        selectedVideos.clear();
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Videos deleted successfully')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting videos: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: isSelectionMode
-          ? AppBar(
-              backgroundColor: Colors.black,
-              leading: IconButton(
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        leading: isSelectionMode
+            ? IconButton(
                 icon: const Icon(Icons.close, color: Colors.white),
                 onPressed: toggleSelectionMode,
-              ),
-              centerTitle: true,
-              title: Text(
-                "Selection: ${selectedVideos.length}",
-                style: const TextStyle(color: Colors.white),
-              ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.merge_type, color: Colors.white),
-                  onPressed: mergeSelectedVideos,
-                ),
-              ],
-            )
-          : null,
+              )
+            : null,
+        centerTitle: true,
+        title: Text(
+          "Video Recorder",
+          style: const TextStyle(color: Colors.white),
+        ),
+        actions: [
+          isSelectionMode ? popupMenu() : SizedBox.shrink(),
+        ],
+      ),
       body: Padding(
         padding: EdgeInsets.all(20.0),
         child: isMerging
@@ -218,9 +268,9 @@ class _CameraScreenState extends State<CameraScreen> {
                 ],
               ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 90.0),
+        padding: const EdgeInsets.only(bottom: 100.0),
         child: FloatingActionButton(
           onPressed: recordVideo,
           backgroundColor: Colors.white,
@@ -238,10 +288,10 @@ class _CameraScreenState extends State<CameraScreen> {
     return GridView.builder(
       shrinkWrap: true,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        mainAxisExtent: MediaQuery.of(context).size.width / 1.8,
-        crossAxisCount: 3,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
+        mainAxisExtent: MediaQuery.of(context).size.width / 2,
+        crossAxisCount: 2,
+        crossAxisSpacing: 20,
+        mainAxisSpacing: 20,
       ),
       itemCount: recordedVideos.length,
       itemBuilder: (context, index) {
@@ -346,6 +396,53 @@ class _CameraScreenState extends State<CameraScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget popupMenu() {
+    return PopupMenuButton<String>(
+      color: Colors.black,
+      icon: const Icon(Icons.more_vert, color: Colors.white),
+      onSelected: (value) {
+        switch (value) {
+          case 'merge':
+            mergeSelectedVideos();
+            break;
+          case 'delete':
+            deleteSelectedVideos();
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'merge',
+          enabled: isSelectionMode && selectedVideos.length >= 2,
+          child: Row(
+            children: [
+              Icon(Icons.merge, color: Colors.white),
+              SizedBox(width: 10.0),
+              Text(
+                'Merge',
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          enabled: isSelectionMode && selectedVideos.isNotEmpty,
+          child: Row(
+            children: [
+              Icon(Icons.delete, color: Colors.white),
+              SizedBox(width: 10.0),
+              Text(
+                'Delete',
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

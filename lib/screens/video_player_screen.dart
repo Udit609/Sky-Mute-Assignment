@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:video_compress/video_compress.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:io';
 
@@ -82,6 +83,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            onPressed: _showVideoDetails,
+            icon: Icon(
+              Icons.more_vert,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
       backgroundColor: Colors.black,
       body: _controller.value.isInitialized
@@ -91,8 +101,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 fit: StackFit.expand,
                 children: [
                   Center(
-                    child: AspectRatio(
-                      aspectRatio: 0.5,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 150.0),
                       child: VideoPlayer(_controller),
                     ),
                   ),
@@ -156,7 +166,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                   ),
                                 ),
                                 Padding(
-                                  padding: const EdgeInsets.all(20.0),
+                                  padding: const EdgeInsets.fromLTRB(20.0, 0.0, 20.0, 40.0),
                                   child: Row(
                                     children: [
                                       Text(
@@ -235,6 +245,98 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               ),
             )
           : Center(child: CircularProgressIndicator(color: Colors.white)),
+    );
+  }
+
+  Future<void> _showVideoDetails() async {
+    try {
+      final info = await VideoCompress.getMediaInfo(widget.videoPath);
+
+      if (!mounted) return;
+
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.black,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (context) => SingleChildScrollView(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[600],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const Text(
+                  'Video Details',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildDetailRow('Title', widget.videoPath.split('/').last),
+                _buildDetailRow('File Path', widget.videoPath),
+                _buildDetailRow(
+                  'Duration',
+                  _formatDuration(Duration(milliseconds: _totalDuration.toInt())),
+                ),
+                _buildDetailRow(
+                    'File Size', '${(info.filesize! / (1024 * 1024)).toStringAsFixed(2)} MB'),
+                _buildDetailRow('Resolution', '${info.width} x ${info.height}'),
+                _buildDetailRow('Orientation', info.orientation.toString()),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error getting video details: $e')),
+      );
+    }
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
